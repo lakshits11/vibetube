@@ -20,3 +20,12 @@ const asyncHandler = (fn) = {() => {}}
 // If we want to make it async
 const asyncHandler = (fn) = async () => {}
 ```
+
+3. MongoDB stores data in BSON format both internally and over the network.
+BSON allows faster traversing of data than JSON.
+
+4. `trim:true` - Removes leading and trailing whitespace
+
+5. watchHistory is a very complex topic in itself.
+
+6. MongoDB aggregation pipelines -> very deep topic and vastly used in production
