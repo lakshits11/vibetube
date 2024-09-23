@@ -40,4 +40,13 @@ app.use(cookieParser());
 // cookieParser lets us access and set cookies in user's browser from server
 // (basically lets us do crud operation on cookies)
 
+// routes import
+import userRouter from "./routes/user.routes.js";
+
+// routes declaration
+// here we dont directly write app.get or app.post
+// we use middleware which gives control to userRouter
+// Now userRouter will see what to do with a given route
+app.use("/api/v1/user", userRouter);
+
 export { app };

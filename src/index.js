@@ -3,14 +3,12 @@ import connectDB from "./db/index.js";
 
 connectDB()
   .then(() => {
-
-    app.on("error", (err)=>{
+    app.on("error", (err) => {
       console.log("Err");
-      
-    })
+    });
 
     app.listen(process.env.PORT || 5000, () => {
-      console.log(`Server is running at port: ${process.env.PORT}`);
+      console.log(`👉 Server is running at port: ${process.env.PORT}`);
     });
   })
   .catch((err) => {
