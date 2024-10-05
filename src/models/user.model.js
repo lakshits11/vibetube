@@ -79,7 +79,7 @@ so even if password is already encrypted and not updated, it will again do 10 ro
 
 userSchema.pre("save", async function (next) {
   if (this.isModified("password")) {
-    this.password = bcrypt.hash(this.password, 10);
+    this.password = await bcrypt.hash(this.password, 10);
     next();
   }
 });
