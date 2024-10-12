@@ -1,6 +1,7 @@
 import { Router } from "express";
-import { registerUser } from "../controllers/user.controller.js";
+import { loginUser, logoutUser, refreshAccessToken, registerUser } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
@@ -19,5 +20,11 @@ router.route("/register").post(
   registerUser
 );
 // in above case, now the url wil look like this: http://localhost:8000/api/v1/user/register
+
+router.route("/login").post(loginUser);
+
+// secured routes
+router.route("/logout").post(verifyJWT, logoutUser)
+router.route("/refreshAccessToken").post(refreshAccessToken)
 
 export default router;

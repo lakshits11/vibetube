@@ -47,6 +47,6 @@ import userRouter from "./routes/user.routes.js";
 // here we dont directly write app.get or app.post
 // we use middleware which gives control to userRouter
 // Now userRouter will see what to do with a given route
-app.use("/api/v1/user", userRouter);
+app.use("/api/v1/users", userRouter);
 
 export { app };
