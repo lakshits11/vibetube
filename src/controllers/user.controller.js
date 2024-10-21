@@ -5,6 +5,7 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import fs from "fs";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
 const cookieOptions = {
   httpOnly: true,
@@ -262,4 +263,228 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 });
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    throw new ApiError(400, "Please provide current password and new password");
+  }
+
+  // Now thinking process:
+  // If user is able to change password, it means the user is logged in
+  // If he is logged in, we can get the user id from the request object
+
+  const user = await User.findById(req.user?._id);
+  const isEnteredPasswordCorrect = await user.isPasswordCorrect(currentPassword);
+  if (!isEnteredPasswordCorrect) {
+    throw new ApiError(400, "Invalid current password ❌");
+  }
+
+  user.password = newPassword;
+  await user.save({ validateBeforeSave: false });
+
+  return res.status(200).json(new ApiResponse(200, {}, "Password changed successfully ✅"));
+});
+
+const getCurrentUser = asyncHandler(async (req, res) => {
+  return res
+    .status(200)
+    .json(new ApiResponse(200, req.user, "Current user fetched successfully ✅"));
+});
+
+const updateAccountDetails = asyncHandler(async (req, res) => {
+  const { fullname, email, username } = req.body;
+
+  // if neither of three are sent, it means user doesn't want to update anything
+  // so we can throw an error
+  if (!fullname && !email && !username) {
+    throw new ApiError(400, "Please provide all the fields");
+  }
+
+  // one approach to check which fields are updated is to create a new object and set only the fields that are updated
+  const updateFields = {};
+
+  if (fullname) updateFields.fullname = fullname;
+  if (email) updateFields.email = email;
+  if (username) updateFields.username = username;
+
+  // another approach is to check this while destructuring req.body itself
+  /*
+  const updateFields = Object.fromEntries(
+  Object.entries(req.body).filter(([_, v]) => v != null)
+  );
+
+  if (Object.keys(updateFields).length === 0) {
+    throw new ApiError(400, "Please provide at least one field to update");
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    { $set: updateFields },
+    { new: true }
+  ).select("-password");
+*/
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: updateFields,
+    },
+    {
+      new: true, // setting new:true returns the updated user with new info
+    }
+  ).select("-password");
+
+  // similarly you can check for email validation, username validation like it should only contain chars from a-z,A-z,0-9,.,_
+  // check for password validation (min length, max length, special characters, etc)
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Account details updated successfully ✅"));
+});
+
+const updateUserAvatar = asyncHandler(async (req, res) => {
+  const avatarLocalPath = req.file?.path;
+
+  if (!avatarLocalPath) {
+    throw new ApiError(400, "Avatar file is missing");
+  }
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
+  if (!avatar) {
+    throw new ApiError(400, "Failed to upload avatar ❌");
+  }
+
+  // TASK: REMOVE PREVIOUS AVATAR IMAGE FROM CLOUDINARY AND ALSO FROM TEMP FOLDER
+
+  // const user = await User.findById(req.user?.id);
+  // user.avatar = avatarCloudinaryUrl;
+  // await user.save({ validateBeforeSave: false });
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        avatar: avatar.url,
+      },
+    },
+    { new: true }
+  ).select("-password");
+
+  return res.status(200).json(new ApiResponse(200, user, "Avatar updated successfully ✅"));
+});
+
+const updateUserCoverImage = asyncHandler(async (req, res) => {
+  const coverImageLocalPath = req.file?.path;
+
+  if (!coverImageLocalPath) {
+    throw new ApiError(400, "coverImage file is missing");
+  }
+  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+  if (!coverImage) {
+    throw new ApiError(400, "Failed to upload coverImage ❌");
+  }
+
+  // const user = await User.findById(req.user?.id);
+  // user.avatar = avatarCloudinaryUrl;
+  // await user.save({ validateBeforeSave: false });
+
+  // TASK: REMOVE PREVIOUS COVER IMAGE FROM CLOUDINARY AND ALSO FROM TEMP FOLDER
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        coverImage: coverImage.url,
+      },
+    },
+    { new: true }
+  ).select("-password");
+
+  return res.status(200).json(new ApiResponse(200, user, "Cover Image updated successfully ✅"));
+});
+
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  const { username } = req.params;
+  if (!username?.trim()) {
+    throw new ApiError(400, "Please provide username");
+  }
+
+  // aggregate always returns an array of documents
+  // we can use $match to filter the documents
+  // and $group to group the documents
+  // and $count to count the number of documents
+  const channel = await User.aggregate([
+    {
+      $match: {
+        username: username?.toLowerCase(),
+      },
+    },
+    {
+      $lookup: {
+        from: "subscriptions", // since model name is Subscription and we know mongodb converts everything to lowercase and makes it plural, we are usingsubscriptions
+        localField: "_id",
+        foreignField: "channel",
+        as: "subscribers",
+      },
+    },
+    {
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscribedToChannels",
+      },
+    },
+    {
+      $addFields: {
+        subscribersCount: {
+          $size: "$subscribers",
+        },
+        subscribedToChannelsCount: {
+          $size: "$subscribedToChannels",
+        },
+        isSubscribed: {
+          $cond: {
+            if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        fullname: 1,
+        username: 1,
+        subscribersCount: 1,
+        subscribedToChannelsCount: 1,
+        isSubscribed: 1,
+        avatar: 1,
+        coverImage: 1,
+        createdAt: 1,
+      },
+    },
+  ]);
+  console.log("⚡ channel : ", channel);
+
+  if (!channel?.length) {
+    throw new ApiError(404, "Channel doesnt exist❌");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, channel[0], "Channel details fetched successfully ✅"));
+});
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  changeCurrentPassword,
+  getCurrentUser,
+  updateAccountDetails,
+  updateUserAvatar,
+  updateUserCoverImage,
+  getUserChannelProfile,
+};
