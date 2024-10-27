@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { changeCurrentPassword, getCurrentUser, getWatchHistory, loginUser, logoutUser, refreshAccessToken, registerUser, updateUserAvatar } from "../controllers/user.controller.js";
+import { changeCurrentPassword, getCurrentUser, getUserChannelProfile, getWatchHistory, loginUser, logoutUser, refreshAccessToken, registerUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -27,9 +27,9 @@ router.route("/login").post(loginUser);
 router.route("/logout").post(verifyJWT, logoutUser)
 router.route("/refreshAccessToken").post(refreshAccessToken)
 
-router.route("/changePassword").post(verifyJWT, changeCurrentPassword)
+router.route("/changePassword").post(upload.none(), verifyJWT, changeCurrentPassword) // see notes.md point 9 for why we used upload.none()
 router.route("/currentUser").get(verifyJWT, getCurrentUser)
-router.route("/updateAccountDetails").patch(verifyJWT, getCurrentUser) // here use patch instead of post
+router.route("/updateAccountDetails").patch(verifyJWT, updateAccountDetails) // here use patch instead of post
 
 router.route("/updateAvatar").patch(verifyJWT, upload.single("avatar"), updateUserAvatar)
 router.route("/updateCoverImage").patch(verifyJWT, upload.single("coverImage"), updateUserCoverImage)

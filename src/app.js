@@ -14,20 +14,11 @@ app.use(
   })
 );
 
-// Sets up the Express app to parse incoming JSON data with a maximum size limit of 16 kilobytes.
-app.use(
-  express.json({
-    limit: "16kb",
-  })
-);
-
 // Configures the Express app to parse URL-encoded form data with extended syntax support and a maximum size limit of 16 kilobytes.
-app.use(
-  express.urlencoded({
-    extended: true,
-    limit: "16kb",
-  })
-);
+app.use(express.urlencoded({ extended: true }));
+
+// Sets up the Express app to parse incoming JSON data with a maximum size limit of 16 kilobytes.
+app.use(express.json());
 
 /*
 1. `app.use(express.static("public"));`: This serves static files (like HTML, CSS, and images) from the "public" directory to the client.
